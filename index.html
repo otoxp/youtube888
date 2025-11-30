@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="/youtube888/manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/youtube888/icons/logo-192.png" />
+  <link rel="apple-touch-icon" href="/youtube888/icons/logo-512.png" />
+  <meta name="theme-color" content="#ff0000" />
+
+  <title>Buscador YouTube Amorim</title>
+
+  <style>
+    :root {
+      --bg-dark: #111;
+      --bg-card-dark: #1a1a1a;
+      --text-dark: #fff;
+      --bg-light: #f2f2f2;
+      --bg-card-light: #ffffff;
+      --text-light: #000;
+      --primary: #ff0000;
+      --primary-dark: #cc0000;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-dark);
+      transition: background 0.3s, color 0.3s;
+    }
+    body.light {
+      background: var(--bg-light);
+      color: var(--text-light);
+    }
+    h1 {
+      text-align: center;
+      color: var(--primary);
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .controls input,
+    .controls button {
+      padding: 10px 12px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: none;
+    }
+    .controls input {
+      flex: 1;
+      min-width: 200px;
+      background: #222;
+      color: #fff;
+      outline: none;
+    }
+    body.light .controls input {
+      background: #ddd;
+      color: #000;
+    }
+    .controls button {
+      cursor: pointer;
+      background: var(--primary-dark);
+      color: #fff;
+      min-width: 140px;
+    }
+    .controls button:hover {
+      background: var(--primary);
+    }
+    #toggle-mode {
+      background: #444;
+    }
+    body.light #toggle-mode {
+      background: #999;
+      color: #000;
+    }
+    #loader {
+      display: none;
+      text-align: center;
+      margin: 10px 0 20px;
+      font-size: 18px;
+    }
+    #loader span {
+      display: inline-block;
+      animation: pulse 1s infinite alternate;
+    }
+    @keyframes pulse {
+      from { transform: scale(1); opacity: 0.7; }
+      to   { transform: scale(1.15); opacity: 1; }
+    }
+    .videos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .video-card {
+      background: var(--bg-card-dark);
+      border-radius: 12px;
+      padding: 10px;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    body.light .video-card {
+      background: var(--bg-card-light);
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.15);
+    }
+    .video-card:hover {
+      transform: translateY(-3px) scale(1.01);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    }
+    .thumb-wrapper {
+      position: relative;
+      overflow: hidden;
+      border-radius: 10px;
+    }
+    .thumb-wrapper img {
+      width: 100%;
+      display: block;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+    .video-card:hover .thumb-wrapper img {
+      transform: scale(1.05);
+    }
+    .video-info {
+      margin-top: 8px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .video-info h3 {
+      font-size: 15px;
+      margin: 6px 0;
+    }
+    .downloads {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .downloads button {
+      flex: 1;
+      min-width: 90px;
+      padding: 6px 8px;
+      font-size: 13px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: #333;
+      color: #fff;
+    }
+    body.light .downloads button {
+      background: #555;
+      color: #fff;
+    }
+    .downloads button:hover {
+      filter: brightness(1.1);
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Buscador YouTube Amorim</h1>
+
+  <div class="controls">
+    <input id="query" placeholder="Ex: música gospel, lo-fi, aulas de Python..." />
+    <button onclick="buscarVideos(true)">Buscar</button>
+    <button id="toggle-mode" onclick="alternarModo()">Modo Claro/Escuro</button>
+  </div>
+
+  <div id="loader"><span>🔎 Buscando vídeos...</span></div>
+
+  <div id="resultados" class="videos-grid"></div>
+
+  <script>
+    const API_KEY = "AIzaSyCdYsIw8W9CyV2GF9w7a96eeIAMOyH5TxU";
+    let nextPageToken = "";
+    let buscando = false;
+
+    function alternarModo() {
+      document.body.classList.toggle("light");
+    }
+
+    function criarCard(video) {
+      const id = video.id.videoId;
+      const title = video.snippet.title;
+      const thumb = (video.snippet.thumbnails.high || video.snippet.thumbnails.medium).url;
+
+      return `
+        <div class="video-card">
+          <div class="thumb-wrapper">
+            <img src="${thumb}" alt="Thumbnail" 
+                 onclick="window.open('https://y2meta.is/pt/youtube/${id}','_blank','noopener')" />
+          </div>
+          <div class="video-info">
+            <h3>${title}</h3>
+            <div class="downloads">
+              <button onclick="window.open('https://www.yout-ube.com/watch?v=${id}','_blank','noopener')">MP4</button>
+              <button onclick="window.open('https://y2meta.is/?url=https://www.youtube.com/watch?v=${id}','_blank','noopener')">MP3</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function buscarVideos(reset = true) {
+      const q = document.getElementById("query").value.trim();
+      if (!q) {
+        alert("Digite algo para buscar.");
+        return;
+      }
+
+      if (buscando) return;
+      buscando = true;
+      document.getElementById("loader").style.display = "block";
+
+      if (reset) {
+        document.getElementById("resultados").innerHTML = "";
+        nextPageToken = "";
+      }
+
+      let url = "https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=24&q=" +
+        encodeURIComponent(q) +
+        "&key=" + API_KEY;
+
+      if (nextPageToken) url += "&pageToken=" + nextPageToken;
+
+      fetch(url)
+        .then((r) => r.json())
+        .then((data) => {
+          nextPageToken = data.nextPageToken || "";
+          const container = document.getElementById("resultados");
+          data.items.forEach((video) => {
+            container.innerHTML += criarCard(video);
+          });
+        })
+        .catch((err) => {
+          console.error(err);
+          alert("Erro ao buscar vídeos.");
+        })
+        .finally(() => {
+          buscando = false;
+          document.getElementById("loader").style.display = "none";
+        });
+    }
+
+    window.addEventListener("scroll", () => {
+      if (
+        window.innerHeight + window.scrollY >= document.body.offsetHeight - 120 &&
+        nextPageToken &&
+        !buscando
+      ) {
+        buscarVideos(false);
+      }
+    });
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/youtube888/service-worker.js");
+    }
+  </script>
+</body>
+</html>
