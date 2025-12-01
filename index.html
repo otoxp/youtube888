@@ -56,6 +56,26 @@ h1{text-align:center;color:#ff0000;margin-top:0;}
 }
 .light .downloads button{background:#666;}
 
+.dub-btn {
+  background:#d40000;
+  color:white;
+  padding:8px 12px;
+  border:none;
+  border-radius:6px;
+  margin-top:8px;
+  cursor:pointer;
+}
+
+.selo-ptbr {
+  margin-top:6px;
+  padding:4px 8px;
+  display:inline-block;
+  background:#008000;
+  color:white;
+  border-radius:6px;
+  font-size:13px;
+}
+
 #loader{text-align:center;margin:10px;font-size:18px;display:none;}
 </style>
 </head>
@@ -98,7 +118,7 @@ function tempoDesde(dataISO){
   return `há ${Math.floor(dias)} dias`;
 }
 
-// ► Card de vídeo + estatísticas
+// ► Card de vídeo + estatísticas + áudio PTBR
 function cardHTML(v){
   const id = v.id.videoId;
   const title = v.snippet.title;
@@ -106,6 +126,18 @@ function cardHTML(v){
 
   const views = formatViews(v.statistics?.viewCount);
   const age = tempoDesde(v.snippet.publishedAt);
+
+  const hasPTBR =
+    v.defaultAudioLanguage === "pt-BR" ||
+    (v.audioTracks && v.audioTracks.some(t => t.language === "pt-BR"));
+
+  const selo = hasPTBR
+    ? `<div class='selo-ptbr'>🎧 Áudio PT-BR disponível</div>`
+    : "";
+
+  const botaoDublado = hasPTBR
+    ? `<button class="dub-btn" onclick="window.open('https://www.youtube.com/watch?v=${id}&hl=pt&cc_lang_pref=pt&cc_load_policy=1','_blank')">▶ Assistir Dublado</button>`
+    : "";
 
   return `
   <div class="card">
@@ -118,16 +150,18 @@ function cardHTML(v){
     <h3>${title}</h3>
     <p style="opacity:.8">${views} visualizações • ${age}</p>
 
+    ${selo}
+    ${botaoDublado}
+
     <div class="downloads">
       <button onclick="window.open('https://www.yout-ube.com/watch?v=${id}','_blank')">MP4</button>
       <button onclick="window.open('https://y2meta.is/?url=https://www.youtube.com/watch?v=${id}','_blank')">MP3</button>
       <button onclick="window.open('https://downsub.com/?url=https://www.youtube.com/watch?v=${id}','_blank')">Legenda (VTT)</button>
     </div>
-  </div>
-  `;
+  </div>`;
 }
 
-// ► Busca vídeos + estatísticas
+// ► Busca vídeos + estatísticas + áudio
 function buscarVideos(reset=true){
   const q = document.getElementById("query").value.trim();
   if(!q) return alert("Digite algo");
@@ -149,19 +183,31 @@ function buscarVideos(reset=true){
     .then(async data=>{
       nextPageToken = data.nextPageToken || "";
 
-      // IDs para buscar estatísticas
       const ids = data.items.map(v => v.id.videoId).join(",");
 
-      const statsURL = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids}&key=${API_KEY}`;
-      const stats = await fetch(statsURL).then(r=>r.json());
+      const statsURL =
+        `https://www.googleapis.com/youtube/v3/videos?part=statistics,contentDetails,snippet&id=${ids}&key=${API_KEY}`;
 
-      const statsMap = {};
-      stats.items.forEach(s => statsMap[s.id] = s.statistics);
+      const extra = await fetch(statsURL).then(r=>r.json());
 
-      data.items.forEach(v => v.statistics = statsMap[v.id.videoId]);
+      const infoMap = {};
+      extra.items.forEach(v=>{
+        infoMap[v.id] = {
+          statistics: v.statistics,
+          defaultAudioLanguage: v.snippet.defaultAudioLanguage,
+          audioTracks: v.contentDetails.audioTracks || null
+        };
+      });
 
       const box = document.getElementById("resultados");
-      data.items.forEach(v=> box.innerHTML += cardHTML(v));
+
+      data.items.forEach(v=>{
+        const extraInfo = infoMap[v.id.videoId] || {};
+        v.statistics = extraInfo.statistics;
+        v.defaultAudioLanguage = extraInfo.defaultAudioLanguage;
+        v.audioTracks = extraInfo.audioTracks;
+        box.innerHTML += cardHTML(v);
+      });
     })
     .finally(()=>{
       loading=false;
