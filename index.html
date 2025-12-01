@@ -118,7 +118,9 @@ function tempoDesde(dataISO){
   return `há ${Math.floor(dias)} dias`;
 }
 
-// ► Card de vídeo + estatísticas + áudio PTBR
+// -------------------------------
+// CARD + DETECÇÃO SEGURA DE PT-BR
+// -------------------------------
 function cardHTML(v){
   const id = v.id.videoId;
   const title = v.snippet.title;
@@ -127,9 +129,23 @@ function cardHTML(v){
   const views = formatViews(v.statistics?.viewCount);
   const age = tempoDesde(v.snippet.publishedAt);
 
-  const hasPTBR =
-    v.defaultAudioLanguage === "pt-BR" ||
-    (v.audioTracks && v.audioTracks.some(t => t.language === "pt-BR"));
+  let hasPTBR = false;
+
+  try {
+    const lang1 = v.snippet?.defaultAudioLanguage;
+    const lang2 = v.defaultAudioLanguage;
+    const tracks = v.audioTracks;
+
+    if (lang1 === "pt-BR" || lang2 === "pt-BR")
+        hasPTBR = true;
+
+    if (Array.isArray(tracks)) {
+        if (tracks.some(t => t.language === "pt-BR"))
+            hasPTBR = true;
+    }
+  } catch(e){
+    hasPTBR = false;
+  }
 
   const selo = hasPTBR
     ? `<div class='selo-ptbr'>🎧 Áudio PT-BR disponível</div>`
@@ -161,7 +177,9 @@ function cardHTML(v){
   </div>`;
 }
 
-// ► Busca vídeos + estatísticas + áudio
+// ------------------------------
+// BUSCA + ESTATÍSTICAS + ÁUDIO
+// ------------------------------
 function buscarVideos(reset=true){
   const q = document.getElementById("query").value.trim();
   if(!q) return alert("Digite algo");
