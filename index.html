@@ -79,29 +79,57 @@ const API_KEY="AIzaSyCdYsIw8W9CyV2GF9w7a96eeIAMOyH5TxU";
 let nextPageToken="";
 let loading=false;
 
+// ► 1. Formata visualizações (ex: 2,6 mi)
+function formatViews(n){
+  if(!n) return "—";
+  if(n >= 1000000) return (n/1000000).toFixed(1).replace(".", ",") + " mi";
+  if(n >= 1000) return (n/1000).toFixed(1).replace(".", ",") + " mil";
+  return n;
+}
+
+// ► 2. Calcula "há X anos/meses/dias"
+function tempoDesde(dataISO){
+  const d = new Date(dataISO);
+  const diff = Date.now() - d;
+  const dias = diff / (1000*60*60*24);
+
+  if(dias >= 365) return `há ${Math.floor(dias/365)} anos`;
+  if(dias >= 30) return `há ${Math.floor(dias/30)} meses`;
+  return `há ${Math.floor(dias)} dias`;
+}
+
+// ► 3. Card de vídeo + estatísticas
 function cardHTML(v){
-  const id=v.id.videoId;
-  const t=v.snippet.title;
-  const img=v.snippet.thumbnails.high.url;
+  const id = v.id.videoId;
+  const title = v.snippet.title;
+  const img = v.snippet.thumbnails.high.url;
+
+  const views = formatViews(v.statistics?.viewCount);
+  const age = tempoDesde(v.snippet.publishedAt);
 
   return `
-  <div class='card'>
-    <img src='${img}' onclick="window.open('https://y2meta.is/pt/youtube/${id}','_blank')"/>
-    <h3>${t}</h3>
-    <div class='downloads'>
+  <div class="card">
+    <img src="${img}" onclick="window.open('https://y2meta.is/pt/youtube/${id}','_blank')"/>
+    <h3>${title}</h3>
+
+    <p style="opacity:.8">${views} visualizações • ${age}</p>
+
+    <div class="downloads">
       <button onclick="window.open('https://www.yout-ube.com/watch?v=${id}','_blank')">MP4</button>
       <button onclick="window.open('https://y2meta.is/?url=https://www.youtube.com/watch?v=${id}','_blank')">MP3</button>
       <button onclick="window.open('https://downsub.com/?url=https://www.youtube.com/watch?v=${id}','_blank')">Legenda (VTT)</button>
     </div>
-  </div>`;
+  </div>
+  `;
 }
 
+// ► 4. Busca vídeos + estatísticas (duas chamadas)
 function buscarVideos(reset=true){
-  const q=document.getElementById("query").value.trim();
+  const q = document.getElementById("query").value.trim();
   if(!q) return alert("Digite algo");
 
   if(loading) return;
-  loading=true;
+  loading = true;
   document.getElementById("loader").style.display="block";
 
   if(reset){
@@ -110,24 +138,43 @@ function buscarVideos(reset=true){
   }
 
   let url=`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=25&q=${encodeURIComponent(q)}&key=${API_KEY}`;
-  if(nextPageToken) url+=`&pageToken=${nextPageToken}`;
+  if(nextPageToken) url += `&pageToken=${nextPageToken}`;
 
-  fetch(url).then(r=>r.json()).then(data=>{
-    nextPageToken=data.nextPageToken||"";
-    const box=document.getElementById("resultados");
-    data.items.forEach(v=> box.innerHTML += cardHTML(v));
-  }).finally(()=>{
-    loading=false;
-    document.getElementById("loader").style.display="none";
-  });
+  fetch(url)
+    .then(r=>r.json())
+    .then(async data=>{
+      nextPageToken = data.nextPageToken || "";
+
+      // IDs para buscar estatísticas
+      const ids = data.items.map(v => v.id.videoId).join(",");
+
+      const statsURL = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids}&key=${API_KEY}`;
+      const stats = await fetch(statsURL).then(r=>r.json());
+
+      // Mapa de estatísticas
+      const statsMap = {};
+      stats.items.forEach(s => statsMap[s.id] = s.statistics);
+
+      // Atribui estatísticas ao item
+      data.items.forEach(v => v.statistics = statsMap[v.id.videoId]);
+
+      const box = document.getElementById("resultados");
+      data.items.forEach(v=> box.innerHTML += cardHTML(v));
+    })
+    .finally(()=>{
+      loading=false;
+      document.getElementById("loader").style.display="none";
+    });
 }
 
+// ► 5. Rolagem infinita
 window.addEventListener("scroll",()=>{
-  if(window.innerHeight+window.scrollY >= document.body.offsetHeight-150){
+  if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 150){
     if(nextPageToken) buscarVideos(false);
   }
 });
 
+// ► 6. PWA
 if("serviceWorker" in navigator){
   navigator.serviceWorker.register("/youtube888/service-worker.js");
 }
