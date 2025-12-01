@@ -17,14 +17,18 @@ body {
   transition:0.3s;
 }
 .light {background:#f2f2f2;color:#000;}
+
 h1{text-align:center;color:#ff0000;margin-top:0;}
 
-.controls {display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.controls {
+  display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;
+}
 .controls input, .controls button {
   padding:12px;font-size:16px;border:none;border-radius:6px;
 }
 .controls input{flex:1;background:#222;color:#fff;}
 .light .controls input{background:#ddd;color:#000;}
+
 .controls button{background:#ff0000;color:white;cursor:pointer;}
 #toggle{background:#444;}
 .light #toggle{background:#999;color:black;}
@@ -39,10 +43,11 @@ h1{text-align:center;color:#ff0000;margin-top:0;}
   box-shadow:0 0 10px #000;transition:0.3s;
 }
 .light .card{background:#fff;box-shadow:0 0 10px #999;}
+
 .card:hover {transform:scale(1.03);}
 
 .card img {
-  width:100%;border-radius:10px;cursor:pointer;background:#000;
+  width:100%;border-radius:10px;cursor:pointer;
 }
 
 .downloads button {
@@ -50,16 +55,6 @@ h1{text-align:center;color:#ff0000;margin-top:0;}
   color:white;border:none;border-radius:6px;cursor:pointer;
 }
 .light .downloads button{background:#666;}
-
-.selo-ptbr {
-  margin-top:6px;
-  padding:4px 8px;
-  display:inline-block;
-  background:#008000;
-  color:white;
-  border-radius:6px;
-  font-size:13px;
-}
 
 #loader{text-align:center;margin:10px;font-size:18px;display:none;}
 </style>
@@ -84,68 +79,61 @@ const API_KEY="AIzaSyCdYsIw8W9CyV2GF9w7a96eeIAMOyH5TxU";
 let nextPageToken="";
 let loading=false;
 
-const FALLBACK_IMG="https://i.ytimg.com/vi_webp/404/maxresdefault.webp";
-
-// ------- FORMATADORES -------
+// ► Formata visualizações (ex: 2,6 mi)
 function formatViews(n){
   if(!n) return "—";
-  if(n>=1e6) return (n/1e6).toFixed(1).replace(".", ",")+" mi";
-  if(n>=1e3) return (n/1e3).toFixed(1).replace(".", ",")+" mil";
+  if(n >= 1000000) return (n/1000000).toFixed(1).replace(".", ",") + " mi";
+  if(n >= 1000) return (n/1000).toFixed(1).replace(".", ",") + " mil";
   return n;
 }
-function tempoDesde(iso){
-  const d=new Date(iso);const diff=Date.now()-d;const dias=diff/86400000;
-  if(dias>=365) return `há ${Math.floor(dias/365)} anos`;
-  if(dias>=30) return `há ${Math.floor(dias/30)} meses`;
+
+// ► Calcula "há X anos/meses/dias"
+function tempoDesde(dataISO){
+  const d = new Date(dataISO);
+  const diff = Date.now() - d;
+  const dias = diff / (1000*60*60*24);
+
+  if(dias >= 365) return `há ${Math.floor(dias/365)} anos`;
+  if(dias >= 30) return `há ${Math.floor(dias/30)} meses`;
   return `há ${Math.floor(dias)} dias`;
 }
 
-// ------- CARD 100% SEGURO -------
+// ► Card de vídeo + estatísticas
 function cardHTML(v){
-  const id = v.id?.videoId || v.id;  
-  const title = v.snippet?.title || "Vídeo sem título";
-  const img = v.snippet?.thumbnails?.high?.url || FALLBACK_IMG;
+  const id = v.id.videoId;
+  const title = v.snippet.title;
+  const img = v.snippet.thumbnails.high.url;
 
   const views = formatViews(v.statistics?.viewCount);
-  const age = v.snippet?.publishedAt ? tempoDesde(v.snippet.publishedAt) : "—";
-
-  // Detecção segura PT-BR
-  let hasPTBR = false;
-  const lang1 = v.snippet?.defaultAudioLanguage;
-  if(lang1 === "pt-BR") hasPTBR = true;
-
-  const selo = hasPTBR ? `<div class='selo-ptbr'>🎧 Áudio PT-BR disponível</div>` : "";
-  const botao = hasPTBR
-    ? `<button class="downloads" style="background:#d40000" onclick="window.open('https://www.youtube.com/watch?v=${id}&hl=pt','_blank')">Assistir Dublado</button>`
-    : "";
+  const age = tempoDesde(v.snippet.publishedAt);
 
   return `
   <div class="card">
-    <img src="${img}" 
-         title="https://www.youtube.com/watch?v=${id}"
-         onclick="window.open('https://www.youtube.com/watch?v=${id}','_blank')">
+    <img 
+      src="${img}" 
+      title="https://www.youtube.com/watch?v=${id}" 
+      onclick="window.open('https://y2meta.is/pt/youtube/${id}','_blank')"
+    />
 
     <h3>${title}</h3>
     <p style="opacity:.8">${views} visualizações • ${age}</p>
-
-    ${selo}
-    ${botao}
 
     <div class="downloads">
       <button onclick="window.open('https://www.yout-ube.com/watch?v=${id}','_blank')">MP4</button>
       <button onclick="window.open('https://y2meta.is/?url=https://www.youtube.com/watch?v=${id}','_blank')">MP3</button>
       <button onclick="window.open('https://downsub.com/?url=https://www.youtube.com/watch?v=${id}','_blank')">Legenda (VTT)</button>
     </div>
-  </div>`;
+  </div>
+  `;
 }
 
-// ------- BUSCA -------
+// ► Busca vídeos + estatísticas
 function buscarVideos(reset=true){
-  const q=document.getElementById("query").value.trim();
+  const q = document.getElementById("query").value.trim();
   if(!q) return alert("Digite algo");
 
   if(loading) return;
-  loading=true;
+  loading = true;
   document.getElementById("loader").style.display="block";
 
   if(reset){
@@ -153,39 +141,46 @@ function buscarVideos(reset=true){
     nextPageToken="";
   }
 
-  let url=`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=20&q=${encodeURIComponent(q)}&key=${API_KEY}`;
-  if(nextPageToken) url+=`&pageToken=${nextPageToken}`;
+  let url=`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=25&q=${encodeURIComponent(q)}&key=${API_KEY}`;
+  if(nextPageToken) url += `&pageToken=${nextPageToken}`;
 
   fetch(url)
-  .then(r=>r.json())
-  .then(async data=>{
-    nextPageToken=data.nextPageToken||"";
+    .then(r=>r.json())
+    .then(async data=>{
+      nextPageToken = data.nextPageToken || "";
 
-    const ids=data.items.map(v=>v.id.videoId).join(",");
-    const info=await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${ids}&key=${API_KEY}`)
-                       .then(r=>r.json());
+      // IDs para buscar estatísticas
+      const ids = data.items.map(v => v.id.videoId).join(",");
 
-    const map={};
-    info.items.forEach(x=>map[x.id]=x);
+      const statsURL = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids}&key=${API_KEY}`;
+      const stats = await fetch(statsURL).then(r=>r.json());
 
-    const box=document.getElementById("resultados");
-    data.items.forEach(v=>{
-      const full = map[v.id.videoId] || v;
-      box.innerHTML += cardHTML(full);
+      const statsMap = {};
+      stats.items.forEach(s => statsMap[s.id] = s.statistics);
+
+      data.items.forEach(v => v.statistics = statsMap[v.id.videoId]);
+
+      const box = document.getElementById("resultados");
+      data.items.forEach(v=> box.innerHTML += cardHTML(v));
+    })
+    .finally(()=>{
+      loading=false;
+      document.getElementById("loader").style.display="none";
     });
-  })
-  .finally(()=>{
-    loading=false;
-    document.getElementById("loader").style.display="none";
-  });
 }
 
-// ------- SCROLL INFINITO -------
-window.addEventListener("scroll", ()=>{
-  if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 200){
+// ► Rolagem infinita
+window.addEventListener("scroll",()=>{
+  if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 150){
     if(nextPageToken) buscarVideos(false);
   }
 });
+
+// ► PWA
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("/youtube888/service-worker.js");
+}
 </script>
+
 </body>
 </html>
