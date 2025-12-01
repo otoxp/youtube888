@@ -79,7 +79,7 @@ const API_KEY="AIzaSyCdYsIw8W9CyV2GF9w7a96eeIAMOyH5TxU";
 let nextPageToken="";
 let loading=false;
 
-// ► 1. Formata visualizações (ex: 2,6 mi)
+// ► Formata visualizações (ex: 2,6 mi)
 function formatViews(n){
   if(!n) return "—";
   if(n >= 1000000) return (n/1000000).toFixed(1).replace(".", ",") + " mi";
@@ -87,7 +87,7 @@ function formatViews(n){
   return n;
 }
 
-// ► 2. Calcula "há X anos/meses/dias"
+// ► Calcula "há X anos/meses/dias"
 function tempoDesde(dataISO){
   const d = new Date(dataISO);
   const diff = Date.now() - d;
@@ -98,7 +98,7 @@ function tempoDesde(dataISO){
   return `há ${Math.floor(dias)} dias`;
 }
 
-// ► 3. Card de vídeo + estatísticas
+// ► Card de vídeo + estatísticas
 function cardHTML(v){
   const id = v.id.videoId;
   const title = v.snippet.title;
@@ -109,9 +109,13 @@ function cardHTML(v){
 
   return `
   <div class="card">
-    <img src="${img}" onclick="window.open('https://y2meta.is/pt/youtube/${id}','_blank')"/>
-    <h3>${title}</h3>
+    <img 
+      src="${img}" 
+      title="https://www.youtube.com/watch?v=${id}" 
+      onclick="window.open('https://y2meta.is/pt/youtube/${id}','_blank')"
+    />
 
+    <h3>${title}</h3>
     <p style="opacity:.8">${views} visualizações • ${age}</p>
 
     <div class="downloads">
@@ -123,7 +127,7 @@ function cardHTML(v){
   `;
 }
 
-// ► 4. Busca vídeos + estatísticas (duas chamadas)
+// ► Busca vídeos + estatísticas
 function buscarVideos(reset=true){
   const q = document.getElementById("query").value.trim();
   if(!q) return alert("Digite algo");
@@ -151,11 +155,9 @@ function buscarVideos(reset=true){
       const statsURL = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids}&key=${API_KEY}`;
       const stats = await fetch(statsURL).then(r=>r.json());
 
-      // Mapa de estatísticas
       const statsMap = {};
       stats.items.forEach(s => statsMap[s.id] = s.statistics);
 
-      // Atribui estatísticas ao item
       data.items.forEach(v => v.statistics = statsMap[v.id.videoId]);
 
       const box = document.getElementById("resultados");
@@ -167,14 +169,14 @@ function buscarVideos(reset=true){
     });
 }
 
-// ► 5. Rolagem infinita
+// ► Rolagem infinita
 window.addEventListener("scroll",()=>{
   if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 150){
     if(nextPageToken) buscarVideos(false);
   }
 });
 
-// ► 6. PWA
+// ► PWA
 if("serviceWorker" in navigator){
   navigator.serviceWorker.register("/youtube888/service-worker.js");
 }
