@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -36,6 +37,11 @@ h1{text-align:center;color:#ff0000;margin-top:0;}
 .grid {
   display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
   gap:20px;
+}
+
+.card-link {
+  text-decoration:none;
+  color:inherit;
 }
 
 .card {
@@ -98,7 +104,7 @@ function tempoDesde(dataISO){
   return `há ${Math.floor(dias)} dias`;
 }
 
-// ► Card de vídeo + estatísticas
+// ► Card de vídeo + estatísticas (CLIQUE FUNCIONANDO)
 function cardHTML(v){
   const id = v.id.videoId;
   const title = v.snippet.title;
@@ -108,22 +114,22 @@ function cardHTML(v){
   const age = tempoDesde(v.snippet.publishedAt);
 
   return `
-  <div class="card">
-    <img 
-      src="${img}" 
-      title="https://www.youtube.com/watch?v=${id}" 
-      onclick="window.open('https://y2meta.is/pt/youtube/${id}','_blank')"
-    />
+  <a href="https://www.youtube.com/watch?v=${id}" target="_blank" class="card-link">
+    <div class="card">
 
-    <h3>${title}</h3>
-    <p style="opacity:.8">${views} visualizações • ${age}</p>
+      <img src="${img}"/>
 
-    <div class="downloads">
-      <button onclick="window.open('https://www.yout-ube.com/watch?v=${id}','_blank')">MP4</button>
-      <button onclick="window.open('https://y2meta.is/?url=https://www.youtube.com/watch?v=${id}','_blank')">MP3</button>
-      <button onclick="window.open('https://downsub.com/?url=https://www.youtube.com/watch?v=${id}','_blank')">Legenda (VTT)</button>
+      <h3>${title}</h3>
+      <p style="opacity:.8">${views} visualizações • ${age}</p>
+
+      <div class="downloads">
+        <button onclick="event.stopPropagation(); window.open('https://www.yout-ube.com/watch?v=${id}','_blank')">MP4</button>
+        <button onclick="event.stopPropagation(); window.open('https://y2meta.is/?url=https://www.youtube.com/watch?v=${id}','_blank')">MP3</button>
+        <button onclick="event.stopPropagation(); window.open('https://downsub.com/?url=https://www.youtube.com/watch?v=${id}','_blank')">Legenda (VTT)</button>
+      </div>
+
     </div>
-  </div>
+  </a>
   `;
 }
 
@@ -149,7 +155,6 @@ function buscarVideos(reset=true){
     .then(async data=>{
       nextPageToken = data.nextPageToken || "";
 
-      // IDs para buscar estatísticas
       const ids = data.items.map(v => v.id.videoId).join(",");
 
       const statsURL = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids}&key=${API_KEY}`;
